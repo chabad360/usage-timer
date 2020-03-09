@@ -2,8 +2,10 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
@@ -134,7 +136,19 @@ func sendNotification(title string, text string, app *gtk.Application) {
 	app.SendNotification(appID, notif)
 }
 
-func startTimer(time int) {
-	timer := time.NewTimer(time * time.Second)
-	println(time)
+func startTimer(minutes string) {
+	min, err := time.ParseDuration(minutes)
+	errorCheck(err)
+
+	endTime := time.Now().Add(min)
+
+	for range time.Tick(1 * time.Second) {
+		timeRemaining := endTime.Sub(time.Now())
+
+		if timeRemaining.Seconds() <= 0 {
+			fmt.Println("Countdown reached!")
+			break
+		}
+
+	}
 }
