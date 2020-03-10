@@ -3,8 +3,13 @@
 <interface>
   <requires lib="gtk+" version="3.20"/>
   <object class="GtkAboutDialog" id="about_window">
+    <property name="name">about_window</property>
     <property name="can_focus">False</property>
+    <property name="role">me.chabad360.timer.about</property>
+    <property name="window_position">center</property>
     <property name="type_hint">dialog</property>
+    <property name="gravity">center</property>
+    <property name="startup_id">me.chabad360.timer.about</property>
     <property name="program_name">Usage Timer</property>
     <property name="version">0.1</property>
     <property name="copyright" translatable="yes">(c) 2020 Mendel Greenberg</property>
@@ -42,8 +47,49 @@
       </object>
     </child>
   </object>
-  <object class="GtkWindow" id="main_window">
+  <object class="GtkMessageDialog" id="error_dialog">
+    <property name="name">error_dialog</property>
     <property name="can_focus">False</property>
+    <property name="type_hint">dialog</property>
+    <property name="urgency_hint">True</property>
+    <property name="message_type">error</property>
+    <property name="buttons">ok</property>
+    <property name="text" translatable="yes">Error!</property>
+    <child internal-child="vbox">
+      <object class="GtkBox">
+        <property name="can_focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox">
+            <property name="can_focus">False</property>
+            <property name="homogeneous">True</property>
+            <property name="layout_style">end</property>
+            <child>
+              <placeholder/>
+            </child>
+            <child>
+              <placeholder/>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkWindow" id="main_window">
+    <property name="name">main_window</property>
+    <property name="can_focus">False</property>
+    <property name="title" translatable="yes">Usage Timer</property>
+    <property name="role">me.chabad360.timer</property>
+    <property name="resizable">False</property>
+    <property name="window_position">center</property>
+    <property name="gravity">center</property>
+    <property name="startup_id">me.chabad360.timer</property>
     <child type="titlebar">
       <placeholder/>
     </child>
@@ -56,28 +102,6 @@
           <object class="GtkMenuBar">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <child>
-              <object class="GtkMenuItem">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="label" translatable="yes">_File</property>
-                <property name="use_underline">True</property>
-                <child type="submenu">
-                  <object class="GtkMenu">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <child>
-                      <object class="GtkMenuItem" id="quit_menu">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="label" translatable="yes">Quit</property>
-                        <property name="use_underline">True</property>
-                      </object>
-                    </child>
-                  </object>
-                </child>
-              </object>
-            </child>
             <child>
               <object class="GtkMenuItem">
                 <property name="visible">True</property>
@@ -119,6 +143,11 @@
               <object class="GtkEntry" id="time">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
+                <property name="has_focus">True</property>
+                <property name="tooltip_text" translatable="yes">Time (in minutes) to set the timer for.</property>
+                <property name="margin_right">5</property>
+                <property name="activates_default">True</property>
+                <property name="caps_lock_warning">False</property>
                 <property name="placeholder_text" translatable="yes">Time</property>
                 <property name="input_purpose">number</property>
               </object>
@@ -132,6 +161,8 @@
                 <property name="label" translatable="yes">Start Timer</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
+                <property name="can_default">True</property>
+                <property name="has_default">True</property>
                 <property name="receives_default">True</property>
                 <property name="margin_right">5</property>
                 <property name="margin_top">5</property>
@@ -145,7 +176,9 @@
               <object class="GtkLabel" id="label_time">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <property name="margin_right">5</property>
                 <property name="label" translatable="yes">Time (in minutes)</property>
+                <property name="single_line_mode">True</property>
               </object>
               <packing>
                 <property name="left_attach">0</property>
@@ -166,10 +199,31 @@
               </packing>
             </child>
             <child>
-              <placeholder/>
+              <object class="GtkProgressBar" id="time_left">
+                <property name="visible">True</property>
+                <property name="sensitive">False</property>
+                <property name="can_focus">False</property>
+                <property name="margin_right">5</property>
+                <property name="text" translatable="yes">00:00:00 Left</property>
+                <property name="show_text">True</property>
+              </object>
+              <packing>
+                <property name="left_attach">1</property>
+                <property name="top_attach">1</property>
+              </packing>
             </child>
             <child>
-              <placeholder/>
+              <object class="GtkButton" id="more_min">
+                <property name="label" translatable="yes">5 More Minutes</property>
+                <property name="visible">True</property>
+                <property name="sensitive">False</property>
+                <property name="can_focus">False</property>
+                <property name="receives_default">True</property>
+              </object>
+              <packing>
+                <property name="left_attach">2</property>
+                <property name="top_attach">1</property>
+              </packing>
             </child>
             <child>
               <placeholder/>

@@ -2,8 +2,10 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/gotk3/gotk3/glib"
@@ -47,15 +49,28 @@ func main() {
 		obj, err = builder.GetObject("time")
 		errorCheck(err)
 
-		time := obj.(*gtk.Entry)
+		timeInput := obj.(*gtk.Entry)
+
+		obj, err = builder.GetObject("time_left")
+		errorCheck(err)
+
+		timeLeft := obj.(*gtk.ProgressBar)
 
 		startBtn, err := getButton(builder, "start_button")
 		errorCheck(err)
 
 		startBtn.Connect("clicked", func() {
-			time, err := time.GetText()
+			input, err := timeInput.GetText()
 			errorCheck(err)
-			startTimer(time)
+			if time, err := strconv.ParseInt(input, 10, 64); err == nil {
+				timeInput.SetSensitive(false)
+				startBtn.SetSensitive(false)
+				quitBtn.SetSensitive(false)
+				str := strconv.FormatInt(time, 10) + "m1s"
+				go startTimer(str, timeLeft)
+			} else {
+				showError("Time must be a number", builder)
+			}
 		})
 
 		mapMenuButtons(builder, application)
@@ -69,19 +84,12 @@ func main() {
 	os.Exit(application.Run(os.Args))
 }
 
-func mapMenuButtons(bldr *gtk.Builder, app *gtk.Application) {
-	menuQuitBtn, err := getMenuItem(bldr, "quit_menu")
-	errorCheck(err)
-
-	menuQuitBtn.Connect("activate", func() {
-		app.Quit()
-	})
-
-	menuAbtBtn, err := getMenuItem(bldr, "about_menu")
+func mapMenuButtons(builder *gtk.Builder, app *gtk.Application) {
+	menuAbtBtn, err := getMenuItem(builder, "about_menu")
 	errorCheck(err)
 
 	menuAbtBtn.Connect("activate", func() {
-		obj, err := bldr.GetObject("about_window")
+		obj, err := builder.GetObject("about_window")
 		errorCheck(err)
 
 		abt := obj.(*gtk.AboutDialog)
@@ -103,9 +111,8 @@ func errorCheck(e error) {
 		log.Panic(e)
 	}
 }
-
-func getButton(bldr *gtk.Builder, name string) (*gtk.Button, error) {
-	obj, err := bldr.GetObject(name)
+func getButton(builder *gtk.Builder, name string) (*gtk.Button, error) {
+	obj, err := builder.GetObject(name)
 	errorCheck(err)
 
 	if btn, ok := obj.(*gtk.Button); ok {
@@ -114,8 +121,8 @@ func getButton(bldr *gtk.Builder, name string) (*gtk.Button, error) {
 	return nil, errors.New("not a *gtk.Button")
 }
 
-func getMenuItem(bldr *gtk.Builder, name string) (*gtk.MenuItem, error) {
-	obj, err := bldr.GetObject(name)
+func getMenuItem(builder *gtk.Builder, name string) (*gtk.MenuItem, error) {
+	obj, err := builder.GetObject(name)
 	errorCheck(err)
 
 	if mnu, ok := obj.(*gtk.MenuItem); ok {
@@ -130,19 +137,48 @@ func sendNotification(title string, text string, image string) {
 	hello.Show()
 }
 
-func startTimer(minutes string) {
+func startTimer(minutes string, bar *gtk.ProgressBar) {
 	min, err := time.ParseDuration(minutes)
 	errorCheck(err)
+	secs := int(min.Seconds() - 1)
+	bar.SetText(fmt.Sprintf("%02d:%02d:%02d Left", int(secs/(60*60)%24), int((secs/60)%60), int(secs%60)))
 
 	endTime := time.Now().Add(min)
+	percent := float64(1 / min.Seconds())
+	progress := float64(0)
 
-	for range time.Tick(1 * time.Second) {
+	for range time.Tick(time.Second) {
 		timeRemaining := endTime.Sub(time.Now())
+		secs = int(timeRemaining.Seconds())
+		bar.SetText(fmt.Sprintf("%02d:%02d:%02d Left", int(secs/(60*60)%24), int((secs/60)%60), int(secs%60)))
+		progress = progress + percent
+		bar.SetFraction(progress)
 
-		if timeRemaining.Seconds() <= 0 {
+		if secs == 300 {
+			sendNotification("Usage Timer", "5 Minutes Left!", "Warning")
+		}
+
+		if secs == 120 {
+			sendNotification("Usage Timer", "2 Minutes Left!", "Warning")
+		}
+
+		if secs <= 0 {
 			sendNotification("Usage Timer", "Countdown reached!", "Error")
 			break
 		}
 
 	}
+}
+
+func showError(text string, builder *gtk.Builder) {
+	obj, err := builder.GetObject("error_dialog")
+	errorCheck(err)
+
+	errorDialog := obj.(*gtk.MessageDialog)
+	errorDialog.FormatSecondaryText(text)
+	errorDialog.Show()
+
+	errorDialog.Connect("button-release-event", func() {
+		errorDialog.Close()
+	})
 }
