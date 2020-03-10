@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"strconv"
 	"time"
 
@@ -35,7 +36,6 @@ func main() {
 		win, err := isWindow(obj)
 		errorCheck(err)
 
-		// Show the Window and all of its components.
 		win.Show()
 		application.AddWindow(win)
 
@@ -44,6 +44,13 @@ func main() {
 
 		quitBtn.Connect("clicked", func() {
 			application.Quit()
+		})
+
+		aboutBtn, err := getButton(builder, "about_button")
+		errorCheck(err)
+
+		aboutBtn.Connect("clicked", func() {
+			showAbout(win)
 		})
 
 		obj, err = builder.GetObject("time")
@@ -62,12 +69,12 @@ func main() {
 		startBtn.Connect("clicked", func() {
 			input, err := timeInput.GetText()
 			errorCheck(err)
-			if time, err := strconv.ParseInt(input, 10, 64); err == nil {
+			if time, err := strconv.ParseFloat(input, 64); err == nil {
 				if response := showAsk("Would you like to start a timer for "+input+" minutes?", win); response == gtk.ResponseType(-8) {
 					timeInput.SetSensitive(false)
 					startBtn.SetSensitive(false)
 					quitBtn.SetSensitive(false)
-					str := strconv.FormatInt(time, 10) + "m1s"
+					str := strconv.FormatFloat(time, 'g', 4, 64) + "m1s"
 					go startTimer(str, timeLeft)
 				} else {
 					fmt.Println(response)
@@ -146,15 +153,14 @@ func startTimer(minutes string, bar *gtk.ProgressBar) {
 
 		if secs == 300 {
 			sendNotification("Usage Timer", "5 Minutes Left!", "Warning")
-		}
-
-		if secs == 120 {
+		} else if secs == 120 {
 			sendNotification("Usage Timer", "2 Minutes Left!", "Warning")
-		}
-
-		if secs <= 0 {
+		} else if secs <= 0 {
 			sendNotification("Usage Timer", "Countdown reached!", "Error")
-			c
+			if err := exec.Command("/usr/bin/poweroff").Run(); err != nil {
+				sendNotification("Error!", "Failed to poweroff", "error")
+			}
+			break
 		}
 
 	}
@@ -185,9 +191,4 @@ func showAbout(window *gtk.Window) {
 	aboutDialog.SetLogoIconName("time")
 	aboutDialog.SetName("Usage Timer")
 	aboutDialog.Show()
-
-	aboutDialog.Connect("button-release-event", func() {
-		aboutDialog.Close()
-	})
-
 }
