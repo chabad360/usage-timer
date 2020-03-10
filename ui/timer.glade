@@ -102,7 +102,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkButton" id="more_min">
+              <object class="GtkButton" id="more_button">
                 <property name="label" translatable="yes">5 More Minutes</property>
                 <property name="visible">True</property>
                 <property name="sensitive">False</property>
