@@ -63,17 +63,21 @@ func main() {
 			input, err := timeInput.GetText()
 			errorCheck(err)
 			if time, err := strconv.ParseInt(input, 10, 64); err == nil {
-				timeInput.SetSensitive(false)
-				startBtn.SetSensitive(false)
-				quitBtn.SetSensitive(false)
-				str := strconv.FormatInt(time, 10) + "m1s"
-				go startTimer(str, timeLeft)
+				if response := showAsk("Would you like to start a timer for "+input+" minutes?", win); response == gtk.ResponseType(-8) {
+					timeInput.SetSensitive(false)
+					startBtn.SetSensitive(false)
+					quitBtn.SetSensitive(false)
+					str := strconv.FormatInt(time, 10) + "m1s"
+					go startTimer(str, timeLeft)
+				} else {
+					fmt.Println(response)
+				}
 			} else {
-				showError("Time must be a number", builder)
+				showError("Time must be a number", win)
 			}
 		})
 
-		mapMenuButtons(builder, application)
+		mapMenuButtons(builder, application, win)
 	})
 	// Connect function to application shutdown event, this is not required.
 	application.Connect("shutdown", func() {
@@ -84,16 +88,12 @@ func main() {
 	os.Exit(application.Run(os.Args))
 }
 
-func mapMenuButtons(builder *gtk.Builder, app *gtk.Application) {
+func mapMenuButtons(builder *gtk.Builder, app *gtk.Application, window *gtk.Window) {
 	menuAbtBtn, err := getMenuItem(builder, "about_menu")
 	errorCheck(err)
 
 	menuAbtBtn.Connect("activate", func() {
-		obj, err := builder.GetObject("about_window")
-		errorCheck(err)
-
-		abt := obj.(*gtk.AboutDialog)
-		abt.Show()
+		showAbout(window)
 	})
 }
 
@@ -170,15 +170,34 @@ func startTimer(minutes string, bar *gtk.ProgressBar) {
 	}
 }
 
-func showError(text string, builder *gtk.Builder) {
-	obj, err := builder.GetObject("error_dialog")
+func showAsk(text string, window *gtk.Window) gtk.ResponseType {
+	askDialog := gtk.MessageDialogNew(window, gtk.DialogFlags(1), gtk.MessageType(2), gtk.ButtonsType(4), "Are You Sure?")
+	askDialog.FormatSecondaryText(text)
+	askDialog.SetDefaultResponse(gtk.ResponseType(-9))
+	response := askDialog.Run()
+	askDialog.Close()
+	return gtk.ResponseType(response)
+}
+
+func showError(text string, window *gtk.Window) {
+	errorDialog := gtk.MessageDialogNew(window, gtk.DialogFlags(1), gtk.MessageType(3), gtk.ButtonsType(1), "Error!")
+	errorDialog.FormatSecondaryText(text)
+	errorDialog.Run()
+	errorDialog.Close()
+}
+
+func showAbout(window *gtk.Window) {
+	aboutDialog, err := gtk.AboutDialogNew()
 	errorCheck(err)
 
-	errorDialog := obj.(*gtk.MessageDialog)
-	errorDialog.FormatSecondaryText(text)
-	errorDialog.Show()
+	aboutDialog.SetCopyright("(c) 2020 Mendel Greenberg")
+	aboutDialog.SetLicenseType(gtk.License(3))
+	aboutDialog.SetLogoIconName("time")
+	aboutDialog.SetName("Usage Timer")
+	aboutDialog.Show()
 
-	errorDialog.Connect("button-release-event", func() {
-		errorDialog.Close()
+	aboutDialog.Connect("button-release-event", func() {
+		aboutDialog.Close()
 	})
+
 }
