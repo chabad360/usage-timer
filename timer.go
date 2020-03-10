@@ -2,13 +2,13 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"time"
 
 	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
+	"github.com/mqu/go-notify"
 )
 
 const appID = "me.chabad360.timer"
@@ -18,14 +18,8 @@ func main() {
 	application, err := gtk.ApplicationNew(appID, glib.APPLICATION_FLAGS_NONE)
 	errorCheck(err)
 
-	// Connect function to application startup event, this is not required.
-	application.Connect("startup", func() {
-		log.Println("application startup")
-	})
-
 	// Connect function to application activate event
 	application.Connect("activate", func() {
-		sendNotification("test", "testy", application)
 		log.Println("application activate")
 
 		builder, err := gtk.BuilderNewFromFile("ui/timer.glade")
@@ -130,10 +124,10 @@ func getMenuItem(bldr *gtk.Builder, name string) (*gtk.MenuItem, error) {
 	return nil, errors.New("not a *gtk.MenuItem")
 }
 
-func sendNotification(title string, text string, app *gtk.Application) {
-	notif := glib.NotificationNew(title)
-	notif.SetBody(title)
-	app.SendNotification(appID, notif)
+func sendNotification(title string, text string, image string) {
+	notify.Init(appID)
+	hello := notify.NotificationNew(title, text, image)
+	hello.Show()
 }
 
 func startTimer(minutes string) {
@@ -146,7 +140,7 @@ func startTimer(minutes string) {
 		timeRemaining := endTime.Sub(time.Now())
 
 		if timeRemaining.Seconds() <= 0 {
-			fmt.Println("Countdown reached!")
+			sendNotification("Usage Timer", "Countdown reached!", "Error")
 			break
 		}
 
