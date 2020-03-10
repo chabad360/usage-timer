@@ -77,7 +77,6 @@ func main() {
 			}
 		})
 
-		mapMenuButtons(builder, application, win)
 	})
 	// Connect function to application shutdown event, this is not required.
 	application.Connect("shutdown", func() {
@@ -86,15 +85,6 @@ func main() {
 
 	// Launch the application
 	os.Exit(application.Run(os.Args))
-}
-
-func mapMenuButtons(builder *gtk.Builder, app *gtk.Application, window *gtk.Window) {
-	menuAbtBtn, err := getMenuItem(builder, "about_menu")
-	errorCheck(err)
-
-	menuAbtBtn.Connect("activate", func() {
-		showAbout(window)
-	})
 }
 
 func isWindow(obj glib.IObject) (*gtk.Window, error) {
@@ -164,7 +154,7 @@ func startTimer(minutes string, bar *gtk.ProgressBar) {
 
 		if secs <= 0 {
 			sendNotification("Usage Timer", "Countdown reached!", "Error")
-			break
+			c
 		}
 
 	}
