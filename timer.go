@@ -18,18 +18,15 @@ const appID = "me.chabad360.timer"
 const maxButton = 2
 
 func main() {
-	// Create a new application.
 	application, err := gtk.ApplicationNew(appID, glib.APPLICATION_FLAGS_NONE)
 	errorCheck(err)
 
-	// Connect function to application activate event
 	application.Connect("activate", func() { startWindow(application) })
-	// Connect function to application shutdown event, this is not required.
+
 	application.Connect("shutdown", func() {
 		log.Println("application shutdown")
 	})
 
-	// Launch the application
 	os.Exit(application.Run(os.Args))
 }
 
@@ -39,23 +36,15 @@ func startWindow(application *gtk.Application) {
 	builder, err := gtk.BuilderNewFromFile("ui/timer.glade")
 	errorCheck(err)
 
-	win := getWindow(builder)
+	win, err := getWindow(builder)
+	errorCheck(err)
+
 	win.Show()
 	application.AddWindow(win)
 
-	quitBtn, err := getButton(builder, "quit_button")
-	errorCheck(err)
+	getAboutButton(builder, win)
 
-	quitBtn.Connect("clicked", func() {
-		application.Quit()
-	})
-
-	aboutBtn, err := getButton(builder, "about_button")
-	errorCheck(err)
-
-	aboutBtn.Connect("clicked", func() {
-		showAbout(win)
-	})
+	quitBtn := getQuitButton(builder, application)
 
 	obj, err := builder.GetObject("time")
 	errorCheck(err)
@@ -74,23 +63,27 @@ func startWindow(application *gtk.Application) {
 	errorCheck(err)
 
 	startBtn.Connect("clicked", func() {
-		input, err := timeInput.GetText()
-		errorCheck(err)
-		if time, err := strconv.ParseFloat(input, 64); err == nil {
-			if response := showAsk("Would you like to start a timer for "+input+" minutes?", win); response == gtk.ResponseType(-8) {
-				timeInput.SetSensitive(false)
-				startBtn.SetSensitive(false)
-				quitBtn.SetSensitive(false)
-				str := strconv.FormatFloat(time, 'g', 4, 64) + "m1s"
-				go startTimer(str, timeLeft, moreBtn)
-			} else {
-				fmt.Println(response)
-			}
-		} else {
-			showError("Time must be a number", win)
-		}
+		startButton(timeInput, timeLeft, startBtn, quitBtn, moreBtn, win)
 	})
 
+}
+
+func startButton(timeInput *gtk.Entry, timeLeft *gtk.ProgressBar, startBtn *gtk.Button, quitBtn *gtk.Button, moreBtn *gtk.Button, win *gtk.Window) {
+	input, err := timeInput.GetText()
+	errorCheck(err)
+	if time, err := strconv.ParseFloat(input, 64); err == nil {
+		if response := showAsk("Would you like to start a timer for "+input+" minutes?", win); response == gtk.ResponseType(-8) {
+			timeInput.SetSensitive(false)
+			startBtn.SetSensitive(false)
+			quitBtn.SetSensitive(false)
+			str := strconv.FormatFloat(time, 'g', 4, 64) + "m1s"
+			startTimer(str, timeLeft, moreBtn)
+		} else {
+			fmt.Println(response)
+		}
+	} else {
+		showError("Time must be a number", win)
+	}
 }
 
 func errorCheck(e error) {
@@ -99,13 +92,14 @@ func errorCheck(e error) {
 	}
 }
 
-func getWindow(builder *gtk.Builder) *gtk.Window {
+func getWindow(builder *gtk.Builder) (*gtk.Window, error) {
 	obj, err := builder.GetObject("main_window")
 	errorCheck(err)
 
-	win := obj.(*gtk.Window)
-
-	return win
+	if win, ok := obj.(*gtk.Window); ok {
+		return win, nil
+	}
+	return nil, errors.New("not a *gtk.Window")
 }
 
 func getButton(builder *gtk.Builder, name string) (*gtk.Button, error) {
@@ -116,6 +110,28 @@ func getButton(builder *gtk.Builder, name string) (*gtk.Button, error) {
 		return btn, nil
 	}
 	return nil, errors.New("not a *gtk.Button")
+}
+
+func getQuitButton(builder *gtk.Builder, application *gtk.Application) *gtk.Button {
+	quitBtn, err := getButton(builder, "quit_button")
+	errorCheck(err)
+
+	quitBtn.Connect("clicked", func() {
+		application.Quit()
+	})
+
+	return quitBtn
+}
+
+func getAboutButton(builder *gtk.Builder, window *gtk.Window) *gtk.Button {
+	aboutBtn, err := getButton(builder, "about_button")
+	errorCheck(err)
+
+	aboutBtn.Connect("clicked", func() {
+		showAbout(window)
+	})
+
+	return aboutBtn
 }
 
 func sendNotification(title string, text string, image string) {
@@ -131,24 +147,37 @@ func startTimer(minutes string, bar *gtk.ProgressBar, moreBtn *gtk.Button) {
 	bar.SetText(fmt.Sprintf("%02d:%02d:%02d Left", int(secs/(60*60)%24), int((secs/60)%60), int(secs%60)))
 
 	endTime := time.Now().Add(min)
-	percent := float64(1 / min.Seconds())
-	progress := float64(0)
 
 	extraTime, _ := time.ParseDuration("5m")
 	buttonUse := 0
+	t := make(chan time.Time, 100)
 
 	moreBtn.Connect("clicked", func() {
 		endTime = endTime.Add(extraTime)
+		t <- endTime
 		buttonUse++
 		moreBtn.SetSensitive(false)
 	})
 
+	t <- endTime
+	go timer(bar, moreBtn, min, buttonUse, t)
+}
+
+func timer(bar *gtk.ProgressBar, moreBtn *gtk.Button, min time.Duration, buttonUse int, t chan time.Time) {
+	secs := int(min.Seconds() - 1)
+	percent := float64(1 / min.Seconds())
+	progress := float64(0)
+	endTime := <-t
+
 	for range time.Tick(time.Second) {
+		select { // Needed to keep endtime from blocking, annoyingly increases cyclomatic complexity.
+		case endTime = <-t:
+		default:
+		}
+
 		timeRemaining := endTime.Sub(time.Now())
 		secs = int(timeRemaining.Seconds())
-		bar.SetText(fmt.Sprintf("%02d:%02d:%02d Left", int(secs/(60*60)%24), int((secs/60)%60), int(secs%60)))
-		progress = progress + percent
-		bar.SetFraction(progress)
+		progress = setFraction(bar, progress, percent, secs)
 
 		if secs == 300 {
 			sendNotification("Usage Timer", "5 Minutes Left!", "Warning")
@@ -168,12 +197,24 @@ func startTimer(minutes string, bar *gtk.ProgressBar, moreBtn *gtk.Button) {
 	}
 }
 
+func setFraction(bar *gtk.ProgressBar, progress float64, percent float64, secs int) float64 {
+	percent = float64((1 - progress) / float64(secs))
+	progress = progress + percent
+
+	bar.SetText(fmt.Sprintf("%02d:%02d:%02d Left", int(secs/(60*60)%24), int((secs/60)%60), int(secs%60)))
+	bar.SetFraction(progress)
+
+	return progress
+}
+
 func showAsk(text string, window *gtk.Window) gtk.ResponseType {
 	askDialog := gtk.MessageDialogNew(window, gtk.DialogFlags(1), gtk.MessageType(2), gtk.ButtonsType(4), "Are You Sure?")
 	askDialog.FormatSecondaryText(text)
 	askDialog.SetDefaultResponse(gtk.ResponseType(-9))
+
 	response := askDialog.Run()
 	askDialog.Close()
+
 	return gtk.ResponseType(response)
 }
 
@@ -181,6 +222,7 @@ func showError(text string, window *gtk.Window) {
 	errorDialog := gtk.MessageDialogNew(window, gtk.DialogFlags(1), gtk.MessageType(3), gtk.ButtonsType(1), "Error!")
 	errorDialog.FormatSecondaryText(text)
 	errorDialog.Run()
+
 	errorDialog.Close()
 }
 
