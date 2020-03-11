@@ -135,8 +135,9 @@ func getAboutButton(builder *gtk.Builder, window *gtk.Window) *gtk.Button {
 
 func sendNotification(title string, text string, image string) {
 	notify.Init(appID)
-	hello := notify.NotificationNew(title, text, image)
-	hello.Show()
+	notif := notify.NotificationNew(title, text, image)
+	notif.SetUrgency(notify.NotifyUrgency(2))
+	notif.Show()
 }
 
 func startTimer(minutes string, bar *gtk.ProgressBar, moreBtn *gtk.Button) {
