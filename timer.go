@@ -40,6 +40,7 @@ func startWindow(application *gtk.Application) {
 	errorCheck(err)
 
 	win.Show()
+
 	application.AddWindow(win)
 
 	getAboutButton(builder, win)
@@ -78,8 +79,6 @@ func startButton(timeInput *gtk.Entry, timeLeft *gtk.ProgressBar, startBtn *gtk.
 			quitBtn.SetSensitive(false)
 			str := strconv.FormatFloat(time, 'g', 4, 64) + "m1s"
 			startTimer(str, timeLeft, moreBtn)
-		} else {
-			fmt.Println(response)
 		}
 	} else {
 		showError("Time must be a number", win)
@@ -144,7 +143,7 @@ func startTimer(minutes string, bar *gtk.ProgressBar, moreBtn *gtk.Button) {
 	min, err := time.ParseDuration(minutes)
 	errorCheck(err)
 	secs := int(min.Seconds() - 1)
-	bar.SetText(fmt.Sprintf("%02d:%02d:%02d Left", int(secs/(60*60)%24), int((secs/60)%60), int(secs%60)))
+	setFraction(bar, float64(0), float64(0), secs)
 
 	endTime := time.Now().Add(min)
 
@@ -170,7 +169,7 @@ func timer(bar *gtk.ProgressBar, moreBtn *gtk.Button, min time.Duration, buttonU
 	endTime := <-t
 
 	for range time.Tick(time.Second) {
-		select { // Needed to keep endtime from blocking, annoyingly increases cyclomatic complexity.
+		select { // Needed to keep endTime from blocking, annoyingly increases cyclomatic complexity.
 		case endTime = <-t:
 		default:
 		}
@@ -189,7 +188,7 @@ func timer(bar *gtk.ProgressBar, moreBtn *gtk.Button, min time.Duration, buttonU
 		} else if secs <= 0 {
 			sendNotification("Usage Timer", "Countdown reached!", "Error")
 			if err := exec.Command("/usr/bin/poweroff").Run(); err != nil {
-				sendNotification("Error!", "Failed to poweroff", "error")
+				sendNotification("Error!", "Failed to poweroff!", "error")
 			}
 			break
 		}
@@ -230,9 +229,12 @@ func showAbout(window *gtk.Window) {
 	aboutDialog, err := gtk.AboutDialogNew()
 	errorCheck(err)
 
+	aboutDialog.SetAuthors([]string{"Mendel Greenberg"})
 	aboutDialog.SetCopyright("(c) 2020 Mendel Greenberg")
 	aboutDialog.SetLicenseType(gtk.License(3))
 	aboutDialog.SetLogoIconName("time")
 	aboutDialog.SetName("Usage Timer")
+	aboutDialog.SetVersion("0.1")
+
 	aboutDialog.Show()
 }
